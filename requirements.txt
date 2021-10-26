@@ -1,0 +1,7 @@
+numpy
+matplotlib
+tensorflow
+tensorflow_datasets
+jupyterlab
+jupyterlab_vim
+ipympl
