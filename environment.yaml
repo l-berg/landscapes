@@ -1,0 +1,17 @@
+name: tf-land
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - tensorflow-gpu
+  - numpy
+  - matplotlib
+  - jupyterlab
+  - pip:
+    - tensorflow_datasets
+    - jupyterlab_vim
+    - ipympl
+    - tqdm
+
+
