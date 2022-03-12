@@ -1,0 +1,19 @@
+name: torch-land
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - numpy
+  - matplotlib
+  - jupyterlab
+  - pytorch
+  - torchvision
+  - cudatoolkit
+  - pip:
+    - jupyterlab_vim
+    - ipympl
+    - tqdm
+
+
