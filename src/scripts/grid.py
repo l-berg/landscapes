@@ -23,6 +23,7 @@ parser.add_argument("--nbatches", type=int, default=3, help="number of data-batc
 parser.add_argument("--batch_size", type=int, default=256, help="batch size")
 parser.add_argument("--step_scale", type=float, default=1.0, help="scales distance between grid points")
 parser.add_argument("--grid_width", type=int, default=10, help="size of grid with width=height")
+parser.add_argument('--use_perturbations_from', help="use the same perturbation vectors as another grid")
 # parser.add_argument('--load', dest='load', default=False, action='store_true', help="load grids instead of computing")
 
 parser.add_argument('--list-layers', dest='list_layers', default=False, action='store_true',
@@ -42,6 +43,8 @@ print('Using {}'.format(device))
 
 class GridWalk:
     def __init__(self, params, vector_pair, step_size, grid_width):
+        params = list(params)
+
         # backup original parameter values
         self.backup_params = []
         for p in params:
@@ -116,9 +119,9 @@ def sample_grid(model, loader, criterion, grid_walk, desc=''):
             pbar.update(1)
 
 
-def average_grad_std(model, loader, criterion):
-    """Inspect gradients of parameters"""
-    grad_stds = []
+def gather_gradients(model, loader, criterion):
+    """Returns a list of gradient vectors for the different batches."""
+    gradients = []
 
     model.train()
     for i, (X, y) in zip(range(args.nbatches), loader):
@@ -130,10 +133,23 @@ def average_grad_std(model, loader, criterion):
 
         loss.backward()
 
+        with torch.no_grad():
+            gradient_vec = {}
+            for name, parameter in model.named_parameters():
+                gradient_vec[name] = parameter.grad.clone().detach()
+            gradients.append(gradient_vec)
+
+    return gradients
+
+def average_grad_std(gradients):
+    """Return average grad std over all batches."""
+    grad_stds = []
+
+    for vec in gradients:
         all_grads = []
-        for p in model.parameters():
-            if p.grad is not None:
-                all_grads.append(p.grad.view(-1))
+        for name, grad in vec.items():
+            if grad is not None:
+                all_grads.append(grad.view(-1))
         all_grads = torch.cat(all_grads)
         grad_stds.append(all_grads.std().item())
 
@@ -143,8 +159,15 @@ def average_grad_std(model, loader, criterion):
 def main():
     args_path = os.path.join('results', args.dataset, args.model_type)
     model_path = os.path.join(args_path, 'training_run/1/model.pt')
-    vectors_path = os.path.join(args_path, 'training_run/vectors', args.grid_name)
-    grids_path = os.path.join(args_path, 'training_run/grids', args.grid_name)
+    grids_path = os.path.join(args_path, 'training_run/grid_data', args.grid_name)
+
+    # use another grid's perturbations
+    if not args.use_perturbations_from:
+        vectors_path = os.path.join(args_path, 'training_run/vectors', args.grid_name)
+    else:
+        vectors_path = os.path.join(args_path, 'training_run/vectors', args.use_perturbations_from)
+        if not os.path.exists(vectors_path):
+            raise FileNotFoundError(f'Grid with name {args.use_perturbations_from} not found')
 
     # create missing directories if necessary
     Path(os.path.dirname(vectors_path)).mkdir(exist_ok=True)
@@ -170,7 +193,7 @@ def main():
         # create perturbation vectors, scale using std of gradient
         if os.path.exists(vectors_path):
             vectors = load_data(vectors_path)
-            print(f'Loaded {len(vectors)} perturbation vector pairs.')
+            print(f'Loaded {len(vectors)} perturbation vector pairs from {vectors_path}.')
         else:
             vectors = []
             for _ in range(args.ngrids):
@@ -182,7 +205,9 @@ def main():
             save_data(vectors_path, vectors)
             print(f'Created {len(vectors)} perturbation vector pairs.')
 
-        step_size = 0.01  # 0.001 * average_grad_std(model, train_loader, criterion)
+        gradients = gather_gradients(model, train_loader, criterion)
+        learning_rate = 0.001
+        step_size = args.step_scale * learning_rate * average_grad_std(gradients)
 
         # all_grids is a matrix of loss landscapes:
         #       batch1, batch2, batch3, ...
@@ -192,16 +217,18 @@ def main():
         # ...
         all_grids = []
         for pair_no, pair in enumerate(vectors):
-            pair_parameters = [[v for k, v in vec.items()] for vec in pair]
+            pair_parameters = [list(vec.values()) for vec in pair]
             grid_walk = GridWalk(model.parameters(), pair_parameters, step_size, args.grid_width)
-            sample_grid(model, train_loader, criterion, grid_walk, desc=f"Permutation {pair_no+1}/{len(vectors)}")
+            sample_grid(model, train_loader, criterion, grid_walk, desc=f"Perturbation {pair_no+1}/{len(vectors)}")
             grids = np.array(grid_walk.grid)
 
             # reorder axes from (v1, v2, batch) to (batch, v1, v2)
             grids = np.moveaxis(grids, -1, 0)
             grids = list(grids)  # batch-wise should be normal python list
             all_grids.append(grids)
-        save_data(grids_path, all_grids)
+
+        # grid data layout: (grid of grids, pair of permutation vectors, step size, extra info)
+        save_data(grids_path, (all_grids, vectors, step_size, gradients))
         print(all_grids)
 
     # import ipdb; ipdb.set_trace()

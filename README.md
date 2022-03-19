@@ -15,7 +15,7 @@ export PYTHONPATH=.
 All scripts are run from the projects root directory and further specify their usage when called with the `-h` flag.
 
 ### Training
-Training a model, whose loss landscapes we want to investigate later:
+Training a model whose loss landscapes we want to investigate later:
 ```bash
 python src/scripts/train.py resnet fashion-mnist
 ```
