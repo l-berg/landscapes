@@ -1,6 +1,7 @@
-from src.utils.utils import set_seed, save_data, load_data, get_model, get_dataloaders
+from src.utils.utils import set_seed, save_data, load_data, get_model, get_dataloaders, get_args_path
 
 import torch
+from torch import nn
 
 import time
 import os
@@ -13,8 +14,10 @@ Train a model. Sets up directory structure with checkpoints, losses etc. for fur
 
 parser.add_argument('model_type', choices=['resnet', 'vgg'])
 parser.add_argument('dataset', choices=['cifar-10', 'tiny-imagenet', 'fashion-mnist', 'mnist'])
+parser.add_argument('--activation', default='relu', choices=['relu', 'sigmoid', 'tanh'],
+                    help="make sure to keep this consistent between calls to train, grid and visualize")
 parser.add_argument("--nepochs", type=int, default=10, help="number of epochs")
-parser.add_argument("--batch_size", type=int, default=256, help="batch size")
+parser.add_argument("--batch_size", type=int, default=128, help="batch size")
 parser.add_argument("--nworkers", type=int, default=4, help="number of workers for dataloaders")
 parser.add_argument("--seed", type=int, default=0, help="random seed")
 # parser.add_argument('--checkpoint_every', type=int, default=1000)
@@ -25,7 +28,6 @@ args = parser.parse_args()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('Using {}'.format(device))
-
 
 
 def run_model(net, loader, criterion, optimizer, train = True):
@@ -62,7 +64,7 @@ def run_model(net, loader, criterion, optimizer, train = True):
     return running_loss / len(loader), (running_accuracy.double() / len(loader.dataset)).item()
 
 def main():
-    args_path = os.path.join('results', args.dataset, args.model_type)
+    args_path = get_args_path(args.dataset, args.model_type, args.activation)
 
     # unique directory for every call of the script
     def get_run(r):
@@ -81,13 +83,14 @@ def main():
 
     train_loader, val_loader = get_dataloaders(args.dataset, batch_size=args.batch_size, nworkers=args.nworkers)
     _, in_channels, in_width, _ = next(iter(train_loader))[0].shape
-    model = get_model(args.model_type, in_channels, in_width).to(device)
+    model = get_model(args.model_type, in_channels, in_width, activation=args.activation).to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     stat_list = []
-    print('\nStarting training loop\n0th epoch is without training!\n\n')
+    print(f'\nStarting training of {args.model_type} (w/ {args.activation}) on {args.dataset}')
+    print('0th epoch is without training!\n\n')
     for e in range(args.nepochs):
         start = time.time()
         train_loss, train_acc = run_model(model, train_loader, criterion, optimizer, train=(e > 0))

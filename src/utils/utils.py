@@ -10,6 +10,12 @@ import os
 import argparse
 from pathlib import Path
 
+def get_args_path(dataset, model_type, activation='relu'):
+    if activation == 'relu':
+        args_path = os.path.join('results', dataset, model_type)
+    else:
+        args_path = os.path.join('results', dataset, f'{model_type}_{activation}')
+    return args_path
 
 def set_seed(seed: int, device=None):
     torch.manual_seed(seed)
@@ -31,7 +37,14 @@ def save_str(path: str, data: str):
     with open(path, 'w') as f:
         f.write(data)
 
-def get_model(name, in_channels=3, in_width=32, num_classes=10):
+def replace_relu(model, activation=nn.Sigmoid):
+    for child_name, child in model.named_children():
+        if isinstance(child, nn.ReLU):
+            setattr(model, child_name, activation())
+        else:
+            replace_relu(child, activation)
+
+def get_model(name, in_channels=3, in_width=32, num_classes=10, activation='relu'):
     if name == 'resnet':
         model = models.ResNet(models.resnet.BasicBlock, [1, 1, 1, 1], num_classes=num_classes)
         model.conv1 = nn.Conv2d(in_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
@@ -44,6 +57,15 @@ def get_model(name, in_channels=3, in_width=32, num_classes=10):
         # import ipdb; ipdb.set_trace()
     else:
         raise IndexError(f'Unknown model type: {name}')
+
+    if activation != 'relu':
+        if activation == 'sigmoid':
+            replace_relu(model, nn.Sigmoid)
+        elif activation == 'tanh':
+            replace_relu(model, nn.Tanh)
+        else:
+            raise IndexError(f'Unknown activation: {activation}')
+
     return model
 
 
