@@ -45,46 +45,67 @@ For visualization, we can either look at heatmaps or contour-plots (using the `-
   <img src="images/cifar_resnet/grid41e0_heatmap.png" width="400" />
 </p>
 
-### Some results
+## Some results
 
-Training progress: ResNet on CIFAR-10 before training and after the first and ninth episode
+### Training progress: ResNet on CIFAR-10 before training and after the first and ninth episode
 <p align="middle">
   <img src="images/cifar_resnet/grid41e0.png" width="400" />
   <img src="images/cifar_resnet/grid41e1.png" width="400" />
   <img src="images/cifar_resnet/grid41e9.png" width="400" />
 </p>
-Training progress on Fashion-MNIST
+
+### Perturbing only a single layer or even a single conv-filter
+First (convolutional) layer:
+<p align="middle">
+  <img src="images/cifar_resnet/grid41e1lc.png" width="400" />
+</p>
+Last (fully connected) layer:
+<p align="middle">
+  <img src="images/cifar_resnet/grid41e1lf.png" width="400" />
+</p>
+First filter in first layer:
+<p align="middle">
+  <img src="images/cifar_resnet/grid41e1lc1.png" width="400" />
+</p>
+
+
+### Different activation functions before and after overfitting: ReLU, sigmoid and tanh
+ReLU
+<p align="middle">
+  <img src="images/cifar_resnet/grid41e1.png" width="400" />
+  <img src="images/cifar_resnet/grid41e9.png" width="400" />
+</p>
+sigmoid
+<p align="middle">
+  <img src="images/cifar_resnet_sigmoid/grid41e1.png" width="400" />
+  <img src="images/cifar_resnet_sigmoid/grid41e9.png" width="400" />
+</p>
+tanh
+<p align="middle">
+  <img src="images/cifar_resnet_tanh/grid41e1.png" width="400" />
+  <img src="images/cifar_resnet_tanh/grid41e9.png" width="400" />
+</p>
+
+### Training progress on Fashion-MNIST
 <p align="middle">
   <img src="images/fashion_resnet/grid41e0.png" width="400" />
   <img src="images/fashion_resnet/grid41e1.png" width="400" />
   <img src="images/fashion_resnet/grid41e9.png" width="400" />
 </p>
 
-Different activation functions before and after overfitting: ReLU, sigmoid and tanh
-<p align="middle">
-  <img src="images/cifar_resnet/grid41e1.png" width="400" />
-  <img src="images/cifar_resnet/grid41e9.png" width="400" />
-</p>
-<p align="middle">
-  <img src="images/cifar_resnet_sigmoid/grid41e1.png" width="400" />
-  <img src="images/cifar_resnet_sigmoid/grid41e9.png" width="400" />
-</p>
-<p align="middle">
-  <img src="images/cifar_resnet_tanh/grid41e1.png" width="400" />
-  <img src="images/cifar_resnet_tanh/grid41e9.png" width="400" />
-</p>
-
-Network architecture: Resnet14 vs VGG11
+### Network architecture: Resnet14 vs VGG11
+before overfitting (after 1 epoch)
 <p align="middle">
   <img src="images/cifar_resnet/grid41e1.png" width="400" />
   <img src="images/cifar_vgg/grid41e1.png" width="400" />
 </p>
+with overfitting (after 9 epochs)
 <p align="middle">
   <img src="images/cifar_resnet/grid41e9.png" width="400" />
   <img src="images/cifar_vgg/grid41e9.png" width="400" />
 </p>
 
-Zooming in 100x (VGG one shows only noise)
+### Zooming in 100x (VGG one shows only noise)
 <p align="middle">
   <img src="images/cifar_resnet/grid41e9xs.png" width="400" />
   <img src="images/cifar_vgg/grid41e9xs.png" width="400" />

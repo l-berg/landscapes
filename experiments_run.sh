@@ -32,4 +32,8 @@ python src/scripts/grid.py grid41e9 vgg cifar-10 --small_gpu --grid_width=41 --e
 python src/scripts/grid.py grid41e1xs vgg cifar-10 --small_gpu --grid_width=41 --episode=1 --max_step=0.01;
 python src/scripts/grid.py grid41e9xs vgg cifar-10 --small_gpu --grid_width=41 --episode=9 --max_step=0.01;
 
+# single layer and kernel
+python src/scripts/grid.py grid41e1lc resnet cifar-10 --grid_width=41 --episode=1 --use_perturbations_from=grid41e1 --layer=conv1.weight;
+python src/scripts/grid.py grid41e1lf resnet cifar-10 --grid_width=41 --episode=1 --use_perturbations_from=grid41e1 --layer=fc.weight;
+python src/scripts/grid.py grid41e1lc1 resnet cifar-10 --grid_width=41 --episode=1 --use_perturbations_from=grid41e1 --layer=conv1.weight --single_kernel;
 
