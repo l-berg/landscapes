@@ -22,6 +22,7 @@ parser.add_argument('--activation', default='relu', choices=['relu', 'sigmoid', 
 parser.add_argument('--clip', type=float, help="clip higher loss values to given value")
 parser.add_argument('--contour', dest='contour', default=False, action='store_true',
                     help="draw a contour plot instead of a height map")
+parser.add_argument("--episode", type=int, help="uses stats from this episode")
 
 args, unknown = parser.parse_known_args()
 
@@ -58,7 +59,7 @@ def project_gradients(vectors, gradients, step_size, desired_length=2.0):
     for pair in vectors_in_one:
         arrow_row = []
         for grad in gradients_in_one:
-            dy, dx = [(torch.dot(v, -grad) / torch.linalg.norm(v)).item() for v in pair]
+            dy, dx = [(torch.dot(v.cpu(), -grad.cpu()) / torch.linalg.norm(v)).item() for v in pair]
             arrow_row.append(np.array([dx, dy]))
         arrow_grid.append(arrow_row)
 
@@ -77,23 +78,24 @@ def main():
     if not os.path.exists(grids_path):
         print(f'Error: no grids found at {grids_path}. Compute them first with grids.py')
         return
-    img_path = os.path.join(args_path, 'training_run/images', f'{args.grid_name}.pdf')
+    img_path = os.path.join(args_path, 'training_run/images', f'{args.grid_name}.png')
     Path(os.path.dirname(img_path)).mkdir(exist_ok=True)
 
     grids, vectors, step_size, gradients = load_data(grids_path)
+    grid_width = len(grids[0][0])
 
     if args.clip:
         grids = [[np.minimum(g, args.clip) for g in row] for row in grids]
 
     # project gradient onto plane spanned by vectors
-    arrow_grid, arrow_scale_factor = project_gradients(vectors, gradients, step_size, desired_length=len(grids[0][0])*0.25)
+    arrow_grid, arrow_scale_factor = project_gradients(vectors, gradients, step_size, desired_length=grid_width*0.25)
 
     # remove mean over every batch
     if not args.contour:
         for batch_no in range(len(grids[0])):
-            batch_mean = np.array([line[batch_no].mean() for line in grids]).mean()
+            #batch_mean = np.array([line[batch_no].mean() for line in grids]).mean()
             for line in grids:
-                line[batch_no] -= batch_mean
+                line[batch_no] -= line[batch_no][int(grid_width/2), int(grid_width/2)]
 
     # some plot parameters
     cmap = 'viridis'  # plt.cm.gist_earth  # 'seismic' - alternative
@@ -106,7 +108,19 @@ def main():
 
     # plot all grids
     fig, ax = plt.subplots(nrows=len(grids), ncols=len(grids[0]), figsize=(8,8), squeeze=False)
-    additional_info = f'.\nSGD-update projections scaled by {arrow_scale_factor:.2e}' if not args.contour else ''
+
+    # context info
+    additional_info = ''
+    if args.episode is not None:
+        stats_path = os.path.join(args_path, 'training_run', str(args.episode), 'stats')
+        stats = load_data(stats_path)
+        assert args.episode == stats['episode']
+        episode_str = f'After {args.episode} episode(s).' if args.episode > 0 else 'No training.'
+        stat_str = ', '.join([f"train loss: {stats['train_loss']:.3f}, train acc: {stats['train_acc']:.3f}",
+                              f"val loss: {stats['val_loss']:.3f}, val acc: {stats['val_acc']:.3f}"])
+        additional_info += f'\n{episode_str} {stat_str}'
+    additional_info += f'.\nSGD-update projections scaled by {arrow_scale_factor:.2e}'
+
     fig.suptitle(f'Loss landscapes of {args.model_type} (w/ {args.activation}) on {args.dataset}{additional_info}')
     for pair_no, batch_of_grids in enumerate(grids):
         for batch_no, grid in enumerate(batch_of_grids):
@@ -116,23 +130,25 @@ def main():
             #rgb = ls.shade(grid, cmap=cmap, vert_exag=1, blend_mode='hsv')
             #a.imshow(rgb)
             if args.contour:
-                grid_width = len(grid)
-                max_step = (grid_width-1)/2 * step_size
-                xlist = np.linspace(-max_step, max_step, grid_width)
-                ylist = np.linspace(-max_step, max_step, grid_width)
+                #max_step = (grid_width-1)/2 * step_size
+                #xlist = np.linspace(-max_step, max_step, grid_width)
+                #ylist = np.linspace(-max_step, max_step, grid_width)
+                xlist = np.arange(grid_width)
+                ylist = np.arange(grid_width)
                 X, Y = np.meshgrid(xlist, ylist)
                 cp = a.contour(X, Y, grid)
                 a.clabel(cp, inline=True, fontsize=6)
+                a.set_ylim(a.get_ylim()[::-1])
 
             else:
                 #plot_grid(grid, a, cmap=cmap, norm=norm)
                 images.append(a.imshow(grid, interpolation='nearest', cmap=cmap, norm=norm))
 
-                # draw gradient arrow
-                #plot_gradient(grid, a, gradients[batch_no], vectors[pair_no], step_size)
-                dx, dy = arrow_grid[pair_no][batch_no]
-                a.arrow(x_root, y_root, dx, dy, head_width=len(grid) * 0.03, head_length=len(grid) * 0.03,
-                        fc='k', ec='k', length_includes_head=True)
+            # draw gradient arrow
+            #plot_gradient(grid, a, gradients[batch_no], vectors[pair_no], step_size)
+            dx, dy = arrow_grid[pair_no][batch_no]
+            a.arrow(x_root, y_root, dx, dy, head_width=grid_width * 0.03, head_length=grid_width * 0.03,
+                    fc='k', ec='k', length_includes_head=True)
 
             # labels
             a.xaxis.set_label_position('top')
@@ -141,7 +157,18 @@ def main():
             a.label_outer()
 
             # no ticks on axes
-            a.set(xticks=[], yticks=[])
+            if pair_no == len(grids)-1:
+                num_ticks = 5
+                max_step = 0.5*(grid_width-1) * step_size
+                # xlist = np.linspace(-max_step, max_step, grid_width)
+                xticks = np.arange(grid_width, step=int(grid_width/(num_ticks-1)))
+                xticklabels = np.linspace(-max_step, max_step, num_ticks)
+                xticklabels = [f'{l:.2g}' for l in xticklabels]
+                #a.xticks(np.arange(grid_width, step=tick_step), xticks_labels)
+                a.set(xticks=xticks, xticklabels=xticklabels, yticks=[])
+                a.tick_params(labelsize=6)
+            else:
+                a.set(xticks=[], yticks=[])
 
     if not args.contour:
         # add colorbar
@@ -152,9 +179,10 @@ def main():
 
     #fig.colorbar(images[0], ax=ax, orientation='horizontal', fraction=.1)
 
-    fig.savefig(img_path, bbox_inches='tight')
+    fig.savefig(img_path, bbox_inches='tight', dpi=300)
     plt.show()
 
+    # import ipdb; ipdb.set_trace()
 
 if __name__ == '__main__':
     main()

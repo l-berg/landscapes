@@ -19,6 +19,7 @@ def load_data(path):
 
 def main():
     data = load_data(args.path)
+    # import ipdb; ipdb.set_trace()
     print(data)
 
 

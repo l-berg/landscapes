@@ -23,7 +23,7 @@ parser.add_argument('--layer', default='all', help="specify which layer gets per
 parser.add_argument("--ngrids", type=int, default=3,
                     help="number of different grids use (= #pairs of perturbation vectors)")
 parser.add_argument("--nbatches", type=int, default=3, help="number of data-batches to compute losses for")
-parser.add_argument("--batch_size", type=int, default=128, help="batch size")
+parser.add_argument("--batch_size", type=int, default=256, help="batch size")
 parser.add_argument("--max_step", type=float, default=1.0, help="distance to edge of grid")
 #parser.add_argument("--step_scale", type=float, default=1.0, help="scales distance between grid points")
 parser.add_argument("--grid_width", type=int, default=11, help="size of grid with width=height")

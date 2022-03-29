@@ -15,5 +15,6 @@ dependencies:
     - jupyterlab_vim
     - ipympl
     - tqdm
+    - ipdb
 
 

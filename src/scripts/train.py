@@ -17,7 +17,7 @@ parser.add_argument('dataset', choices=['cifar-10', 'tiny-imagenet', 'fashion-mn
 parser.add_argument('--activation', default='relu', choices=['relu', 'sigmoid', 'tanh'],
                     help="make sure to keep this consistent between calls to train, grid and visualize")
 parser.add_argument("--nepochs", type=int, default=10, help="number of epochs")
-parser.add_argument("--batch_size", type=int, default=128, help="batch size")
+parser.add_argument("--batch_size", type=int, default=256, help="batch size")
 parser.add_argument("--nworkers", type=int, default=4, help="number of workers for dataloaders")
 parser.add_argument("--seed", type=int, default=0, help="random seed")
 # parser.add_argument('--checkpoint_every', type=int, default=1000)
